@@ -1,6 +1,6 @@
 'use strict';
 
-var obsidian = require('obsidian');//eslint-disable-line
+var obsidian = require('obsidian');
 
 const httpUrl = value => {
   const text = value.trim();
@@ -60,12 +60,13 @@ const eventClipboard = snapshot => {
 };
 
 const sourceLink = (url, label) => {
-  const destination = url.replace(/[<>\\]/g, char => encodeURIComponent(char));
+  const destination = url.replace(/[<>\\\s]/g, char => encodeURIComponent(char))
+    .replace(/\(/g, '%28').replace(/\)/g, '%29');
   const title = label.trim().replace(/\s+/g, ' ').replace(/[\\[\]]/g, '\\$&');
   if (title) {
-    return `[${title}](<${destination}>)`;
+    return `[${title}](${destination})`;
   }
-  return `<${destination}>`;
+  return destination;
 };
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -570,4 +571,4 @@ class PasteImagePlugin extends obsidian.Plugin {
   }
 }
 
-module.exports = PasteImagePlugin; //eslint-disable-line
+module.exports = PasteImagePlugin;

@@ -18,8 +18,6 @@ const config = args => {
       },
       async generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'manifest.json', source: await readFile(manifestPath, 'utf8') });
-        // Obsidian's Hot Reload plugin uses this marker to opt into reloading.
-        this.emitFile({ type: 'asset', fileName: '.hotreload', source: '' });
       },
     });
   }

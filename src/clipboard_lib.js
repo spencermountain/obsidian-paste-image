@@ -56,12 +56,13 @@ const eventClipboard = snapshot => {
 };
 
 const sourceLink = (url, label) => {
-  const destination = url.replace(/[<>\\]/g, char => encodeURIComponent(char));
+  const destination = url.replace(/[<>\\\s]/g, char => encodeURIComponent(char))
+    .replace(/\(/g, '%28').replace(/\)/g, '%29');
   const title = label.trim().replace(/\s+/g, ' ').replace(/[\\[\]]/g, '\\$&');
   if (title) {
-    return `[${title}](<${destination}>)`;
+    return `[${title}](${destination})`;
   }
-  return `<${destination}>`;
+  return destination;
 };
 
 export { snapshotClipboard, eventClipboard, sourceLink };
