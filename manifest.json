@@ -1,0 +1,9 @@
+{
+  "id": "paste-image",
+  "name": "Paste Image",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.7",
+  "description": "Paste actual images from mixed clipboard formats or image URLs.",
+  "author": "spencer kelly",
+  "isDesktopOnly": false
+}
