@@ -1,18 +1,39 @@
 {
   "name": "obsidian-paste-image",
-  "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "version": "0.0.1",
+  "description": "",
+  "repository": "github:spencermountain/obsidian-paste-image",
+  "author": "Spencer Kelly <spencermountain@gmail.com> (https://spencermountain.dev)",
+  "minimumReleaseAge": "1 day",
   "scripts": {
     "dev": "rollup --config",
     "watch": "rollup --config--watch",
     "build": "rollup --config",
     "lint": "eslint ."
   },
+  "type": "module",
+  "main": "src/index.js",
+  "files": [
+    "src",
+    "builds",
+    "types"
+  ],
   "engines": {
     "node": ">=18"
   },
+  "prettier": {
+    "trailingComma": "none",
+    "semi": false,
+    "singleQuote": true,
+    "printWidth": 100
+  },
+  "dependencies": {},
   "devDependencies": {
+    "tape": "^5.10.2",
+    "tap-dancer": "0.4.2",
+    "eslint": "10.11.0",
     "rollup": "^4.64.0"
-  }
+  },
+  "license": "MIT"
 }

@@ -1,6 +1,6 @@
 'use strict';
 
-var obsidian = require('obsidian');
+var obsidian = require('obsidian');//eslint-disable-line
 
 const httpUrl = value => {
   const text = value.trim();
@@ -570,4 +570,4 @@ class PasteImagePlugin extends obsidian.Plugin {
   }
 }
 
-module.exports = PasteImagePlugin;
+module.exports = PasteImagePlugin; //eslint-disable-line
