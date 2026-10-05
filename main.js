@@ -33,19 +33,14 @@ const clipboardSource = (text, html, uriList) => {
 
 // Copy every live DataTransfer value before the paste handler returns.
 const snapshotClipboard = data => ({
-  types: Array.from(data?.types || []),
-  items: Array.from(data?.items || [], item => ({
-    kind: item.kind,
-    type: item.type,
-    file: item.kind === 'file' ? item.getAsFile() : null,
-  })),
+  itemFiles: Array.from(data?.items || [], item => item.kind === 'file' ? item.getAsFile() : null),
   files: Array.from(data?.files || []),
   text: Object.fromEntries(['text/plain', 'text/uri-list', 'text/html'].map(type => [type, data?.getData(type) || ''])),
 });
 
 const eventClipboard = snapshot => {
   const files = snapshot.files.filter(file => file.type.startsWith('image/'));
-  snapshot.items.forEach(({ file }) => {
+  snapshot.itemFiles.forEach(file => {
     if (file?.type.startsWith('image/') && !files.some(existing =>
       existing.name === file.name && existing.size === file.size && existing.type === file.type)) {
       files.push(file);
@@ -253,7 +248,7 @@ const pasteFiles = async (plugin, context, blobs, url) => {
   plugin.forwardedEvents.add(event);
   target.dispatchEvent(event);
   if (event.defaultPrevented || editor.getValue() !== stagedText) {
-    return 'paste-event-handed-off';
+    return;
   }
   // Synthetic events have no browser default action. Use public vault APIs if
   // neither Obsidian nor another plugin claims the event.
@@ -273,103 +268,7 @@ const pasteFiles = async (plugin, context, blobs, url) => {
     links.push(`!${plugin.app.fileManager.generateMarkdownLink(attachment, file.path)}`);
   }
   editor.replaceSelection(links.join('\n') + suffix);
-  return 'vault-attachment-inserted';
 };
-
-const fileMetadata = file => ({ name: file.name, type: file.type, size: file.size });
-
-class PasteDiagnostics {
-  records = [];
-  listeners = new Set();
-
-  capture(event, source) {
-    const record = {
-      source,
-      time: new Date().toISOString(),
-      initialDefaultPrevented: event.defaultPrevented,
-      isTrusted: event.isTrusted,
-      clipboardData: null,
-      branch: 'captured',
-      steps: [],
-      error: null,
-    };
-    let snapshot;
-    try {
-      snapshot = snapshotClipboard(event.clipboardData);
-      record.clipboardData = {
-        types: snapshot.types,
-        items: snapshot.items.map(({ kind, type, file }) => ({
-          kind, type, file: file ? fileMetadata(file) : null,
-        })),
-        files: snapshot.files.map(fileMetadata),
-        ...snapshot.text,
-      };
-    } catch (error) {
-      record.error = error.message;
-      record.branch = 'snapshot-error';
-    }
-    this.records.push(record);
-    this.records = this.records.slice(-20);
-    this.notify();
-    return { record, snapshot };
-  }
-
-  update(record, branch, error = record.error) {
-    record.branch = branch;
-    record.steps.push(branch);
-    record.error = error;
-    this.notify();
-  }
-
-  notify() {
-    this.listeners.forEach(listener => listener());
-  }
-
-  clear() {
-    this.records = [];
-    this.notify();
-  }
-}
-
-const diagnosticsPanel = (container, diagnostics) => {
-  container.createEl('p', { text: 'Temporary paste diagnostics: last 20 events, kept only in memory. Includes clipboard text and URLs, never file bytes.' });
-  const output = container.createEl('textarea', { attr: { rows: '14', 'aria-label': 'Paste diagnostics JSON', readonly: '' } });
-  output.style.width = '100%';
-  const render = () => { output.value = JSON.stringify(diagnostics.records, null, 2); };
-  render();
-  diagnostics.listeners.add(render);
-  const copy = container.createEl('button', { text: 'Copy diagnostics' });
-  copy.addEventListener('click', async () => {
-    try {
-      await container.ownerDocument.defaultView.navigator.clipboard.writeText(output.value);
-      new obsidian.Notice('Paste diagnostics copied.', 2000);
-    } catch {
-      output.focus();
-      output.select();
-      new obsidian.Notice('Use the system Copy action on the selected JSON.', 3500);
-    }
-  });
-  container.createEl('button', { text: 'Clear diagnostics' }).addEventListener('click', () => diagnostics.clear());
-  return () => diagnostics.listeners.delete(render);
-};
-
-class DiagnosticsModal extends obsidian.Modal {
-  constructor(plugin) {
-    super(plugin.app);
-    this.plugin = plugin;
-  }
-
-  onOpen() {
-    this.titleEl.setText('Paste diagnostics');
-    this.disposePanel = diagnosticsPanel(this.contentEl, this.plugin.diagnostics);
-  }
-
-  onClose() {
-    this.disposePanel?.();
-    this.contentEl.empty();
-    this.plugin.diagnosticsModal = null;
-  }
-}
 
 class NativePasteModal extends obsidian.Modal {
   constructor(plugin, context) {
@@ -391,41 +290,33 @@ class NativePasteModal extends obsidian.Modal {
     field.style.padding = '1em';
     field.textContent = 'Tap here, then paste';
     field.addEventListener('paste', event => this.handlePaste(event));
-    this.contentEl.createEl('p', { text: 'After insertion, use “Show paste diagnostics” to inspect or copy the result, including editor-paste events.' });
-    this.disposePanel = diagnosticsPanel(this.contentEl, this.plugin.diagnostics);
     field.focus();
   }
 
   handlePaste(event) {
     const { plugin } = this;
-    // Capture the original prevented state and all data within this event turn.
-    const { record, snapshot } = plugin.diagnostics.capture(event, 'modal-paste');
-    event.preventDefault();
-    if (record.initialDefaultPrevented) {
-      plugin.diagnostics.update(record, 'already-prevented');
+    if (event.defaultPrevented) {
       return;
     }
-    if (!snapshot || plugin.busy) {
-      if (plugin.busy) {
-        plugin.diagnostics.update(record, 'busy');
-        new obsidian.Notice('An image is already loading…', 2000);
-      }
+    event.preventDefault();
+    if (plugin.busy) {
+      new obsidian.Notice('An image is already loading…', 2000);
       return;
     }
     let data;
     try {
-      data = eventClipboard(snapshot);
+      // The native event exposes iOS image files that clipboard.read() can omit.
+      data = eventClipboard(snapshotClipboard(event.clipboardData));
     } catch (error) {
-      plugin.diagnostics.update(record, 'clipboard-error', error.message);
+      new obsidian.Notice(error.message || 'Could not read the pasted image. Try again.', 3500);
       return;
     }
     // Closing restores the note's selection before handing off the image.
     this.close();
-    void plugin.run(data, this.context, record);
+    void plugin.run(data, this.context);
   }
 
   onClose() {
-    this.disposePanel?.();
     this.contentEl.empty();
     this.plugin.nativePasteModal = null;
   }
@@ -439,23 +330,13 @@ class PasteImagePlugin extends obsidian.Plugin {
     this.busy = false;
     this.stopped = false;
     this.forwardedEvents = new WeakSet();
-    this.diagnostics = new PasteDiagnostics();
     this.addCommand({
       id: 'paste-image',
       name: 'paste-image',
+      icon: 'image',
       editorCallback: () => this.openNativePaste(),
     });
-    this.addCommand({
-      id: 'show-paste-diagnostics',
-      name: 'Show paste diagnostics',
-      callback: () => {
-        if (!this.diagnosticsModal) {
-          this.diagnosticsModal = new DiagnosticsModal(this);
-          this.diagnosticsModal.open();
-        }
-      },
-    });
-    this.addRibbonIcon('image-plus', 'Paste image', () => this.openNativePaste());
+    this.addRibbonIcon('image', 'Paste image', () => this.openNativePaste());
     this.addSettingTab(new PasteImageSettings(this.app, this));
     this.registerEvent(this.app.workspace.on('editor-paste', (event, editor) => this.intercept(event, editor)));
   }
@@ -463,53 +344,32 @@ class PasteImagePlugin extends obsidian.Plugin {
   onunload() {
     this.stopped = true;
     this.nativePasteModal?.close();
-    this.diagnosticsModal?.close();
-    this.diagnostics.clear();
   }
 
   intercept(event, editor) {
-    const { record, snapshot } = this.diagnostics.capture(event, 'editor-paste');
-    if (record.initialDefaultPrevented) {
-      this.diagnostics.update(record, 'already-prevented');
-      return;
-    }
-    if (this.forwardedEvents.has(event)) {
-      this.diagnostics.update(record, 'forwarded-image-pass-through');
-      return;
-    }
-    if (!snapshot) {
-      return;
-    }
-    if (!this.settings.preferImages && !this.settings.appendSource) {
-      this.diagnostics.update(record, 'logging-only');
-      return;
-    }
-    if (this.busy) {
-      this.diagnostics.update(record, 'busy-pass-through');
+    if (event.defaultPrevented || this.forwardedEvents.has(event) || !event.clipboardData ||
+        this.busy || (!this.settings.preferImages && !this.settings.appendSource)) {
       return;
     }
     const view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
     if (!view?.file || view.editor !== editor || view.getMode() !== 'source' ||
         editor.listSelections().length !== 1) {
-      this.diagnostics.update(record, 'unsupported-editor-pass-through');
       return;
     }
     let data;
     try {
-      data = eventClipboard(snapshot);
-    } catch (error) {
-      this.diagnostics.update(record, 'clipboard-error-pass-through', error.message);
+      data = eventClipboard(snapshotClipboard(event.clipboardData));
+    } catch {
+      // Leave ordinary paste intact if this clipboard cannot be read.
       return;
     }
     if (!data.files.length || (!this.settings.preferImages && !data.url)) {
-      this.diagnostics.update(record, 'ordinary-paste-pass-through');
       return;
     }
     const context = captureEditor(view);
     // Only claim the event once we have image files and a supported target.
     event.preventDefault();
-    this.diagnostics.update(record, 'image-paste-claimed');
-    void this.run(data, context, record);
+    void this.run(data, context);
   }
 
   openNativePaste() {
@@ -532,9 +392,8 @@ class PasteImagePlugin extends obsidian.Plugin {
     }
   }
 
-  async run(data, context, record) {
+  async run(data, context) {
     if (this.busy || this.stopped) {
-      this.diagnostics.update(record, 'cancelled');
       return;
     }
     this.busy = true;
@@ -543,24 +402,18 @@ class PasteImagePlugin extends obsidian.Plugin {
       checkEditor(this, context);
       if (!data.files.length) {
         if (!data.url) {
-          this.diagnostics.update(record, 'no-image-or-url');
           let message = 'Clipboard is empty or contains no readable image.';
           if (data.hasText) {
             message = 'Clipboard contains text, not an image or an image URL.';
           }
           throw new Error(message);
         }
-        this.diagnostics.update(record, 'url-download');
         loading = new obsidian.Notice('Loading image…', 2500);
         data.files = [await downloadImage(data.url)];
-      } else {
-        this.diagnostics.update(record, 'native-image-files');
       }
       checkEditor(this, context);
-      const delivery = await pasteFiles(this, context, data.files, data.url);
-      this.diagnostics.update(record, delivery);
+      await pasteFiles(this, context, data.files, data.url);
     } catch (error) {
-      this.diagnostics.update(record, 'error', error.message || String(error));
       if (!this.stopped) {
         new obsidian.Notice(error.message || 'Could not paste the image. Check your connection and try again.', 4500);
       }

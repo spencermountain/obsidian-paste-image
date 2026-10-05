@@ -1,5 +1,5 @@
 export default [
-  { ignores: ['**/builds/*', '**/scratch.js', '**/rollup.config.js'] },
+  { ignores: ['main.js', '**/builds/*', '**/scratch.js', '**/rollup.config.js'] },
   {
     languageOptions: {
       ecmaVersion: 'latest',

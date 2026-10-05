@@ -53,7 +53,7 @@ const pasteFiles = async (plugin, context, blobs, url) => {
   plugin.forwardedEvents.add(event);
   target.dispatchEvent(event);
   if (event.defaultPrevented || editor.getValue() !== stagedText) {
-    return 'paste-event-handed-off';
+    return;
   }
   // Synthetic events have no browser default action. Use public vault APIs if
   // neither Obsidian nor another plugin claims the event.
@@ -73,7 +73,6 @@ const pasteFiles = async (plugin, context, blobs, url) => {
     links.push(`!${plugin.app.fileManager.generateMarkdownLink(attachment, file.path)}`);
   }
   editor.replaceSelection(links.join('\n') + suffix);
-  return 'vault-attachment-inserted';
 };
 
 export { captureEditor, checkEditor, pasteFiles };

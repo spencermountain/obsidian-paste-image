@@ -29,19 +29,14 @@ const clipboardSource = (text, html, uriList) => {
 
 // Copy every live DataTransfer value before the paste handler returns.
 const snapshotClipboard = data => ({
-  types: Array.from(data?.types || []),
-  items: Array.from(data?.items || [], item => ({
-    kind: item.kind,
-    type: item.type,
-    file: item.kind === 'file' ? item.getAsFile() : null,
-  })),
+  itemFiles: Array.from(data?.items || [], item => item.kind === 'file' ? item.getAsFile() : null),
   files: Array.from(data?.files || []),
   text: Object.fromEntries(['text/plain', 'text/uri-list', 'text/html'].map(type => [type, data?.getData(type) || ''])),
 });
 
 const eventClipboard = snapshot => {
   const files = snapshot.files.filter(file => file.type.startsWith('image/'));
-  snapshot.items.forEach(({ file }) => {
+  snapshot.itemFiles.forEach(file => {
     if (file?.type.startsWith('image/') && !files.some(existing =>
       existing.name === file.name && existing.size === file.size && existing.type === file.type)) {
       files.push(file);

@@ -1,6 +1,5 @@
 import { Modal, Notice } from 'obsidian';
-import { eventClipboard } from './clipboard_lib.js';
-import { diagnosticsPanel } from './diagnostics.js';
+import { snapshotClipboard, eventClipboard } from './clipboard_lib.js';
 
 class NativePasteModal extends Modal {
   constructor(plugin, context) {
@@ -22,41 +21,33 @@ class NativePasteModal extends Modal {
     field.style.padding = '1em';
     field.textContent = 'Tap here, then paste';
     field.addEventListener('paste', event => this.handlePaste(event));
-    this.contentEl.createEl('p', { text: 'After insertion, use “Show paste diagnostics” to inspect or copy the result, including editor-paste events.' });
-    this.disposePanel = diagnosticsPanel(this.contentEl, this.plugin.diagnostics);
     field.focus();
   }
 
   handlePaste(event) {
     const { plugin } = this;
-    // Capture the original prevented state and all data within this event turn.
-    const { record, snapshot } = plugin.diagnostics.capture(event, 'modal-paste');
-    event.preventDefault();
-    if (record.initialDefaultPrevented) {
-      plugin.diagnostics.update(record, 'already-prevented');
+    if (event.defaultPrevented) {
       return;
     }
-    if (!snapshot || plugin.busy) {
-      if (plugin.busy) {
-        plugin.diagnostics.update(record, 'busy');
-        new Notice('An image is already loading…', 2000);
-      }
+    event.preventDefault();
+    if (plugin.busy) {
+      new Notice('An image is already loading…', 2000);
       return;
     }
     let data;
     try {
-      data = eventClipboard(snapshot);
+      // The native event exposes iOS image files that clipboard.read() can omit.
+      data = eventClipboard(snapshotClipboard(event.clipboardData));
     } catch (error) {
-      plugin.diagnostics.update(record, 'clipboard-error', error.message);
+      new Notice(error.message || 'Could not read the pasted image. Try again.', 3500);
       return;
     }
     // Closing restores the note's selection before handing off the image.
     this.close();
-    void plugin.run(data, this.context, record);
+    void plugin.run(data, this.context);
   }
 
   onClose() {
-    this.disposePanel?.();
     this.contentEl.empty();
     this.plugin.nativePasteModal = null;
   }
