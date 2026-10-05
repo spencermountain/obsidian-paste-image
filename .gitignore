@@ -13,6 +13,7 @@ Thumbs.db
 coverage.lcov
 coverage/
 node_modules/
+/release/
 npm-debug.log
 npm-debug.log*
 pnpm-debug.log*

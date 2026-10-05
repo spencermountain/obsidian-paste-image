@@ -9,6 +9,7 @@
     "dev": "rollup --config",
     "watch": "rollup --config--watch",
     "build": "rollup --config",
+    "release": "pnpm run build && node scripts/release.js",
     "lint": "eslint ."
   },
   "type": "module",
