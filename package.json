@@ -1,7 +1,6 @@
 {
   "name": "obsidian-paste-image",
-  "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "repository": "github:spencermountain/obsidian-paste-image",
   "author": "Spencer Kelly <spencermountain@gmail.com> (https://spencermountain.dev)",

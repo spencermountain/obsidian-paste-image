@@ -3,7 +3,7 @@ import { snapshotClipboard, eventClipboard } from './clipboard_lib.js';
 import { downloadImage } from './image_lib.js';
 import { DEFAULT_SETTINGS, PasteImageSettings } from './settings.js';
 import { captureEditor, checkEditor, pasteFiles } from './paste_lib.js';
-import NativePasteModal from './native-paste.js';
+import readClipboard from './read-clipboard.js';
 
 class PasteImagePlugin extends Plugin {
   async onload() {
@@ -17,16 +17,15 @@ class PasteImagePlugin extends Plugin {
       id: 'paste-image',
       name: 'paste-image',
       icon: 'image',
-      editorCallback: () => this.openNativePaste(),
+      editorCallback: () => this.pasteFromClipboard(),
     });
-    this.addRibbonIcon('image', 'Paste image', () => this.openNativePaste());
+    this.addRibbonIcon('image', 'Paste image', () => this.pasteFromClipboard());
     this.addSettingTab(new PasteImageSettings(this.app, this));
     this.registerEvent(this.app.workspace.on('editor-paste', (event, editor) => this.intercept(event, editor)));
   }
 
   onunload() {
     this.stopped = true;
-    this.nativePasteModal?.close();
   }
 
   intercept(event, editor) {
@@ -55,7 +54,7 @@ class PasteImagePlugin extends Plugin {
     void this.run(data, context);
   }
 
-  openNativePaste() {
+  pasteFromClipboard() {
     if (this.busy) {
       new Notice('An image is already loading…', 2000);
       return;
@@ -69,10 +68,7 @@ class PasteImagePlugin extends Plugin {
       new Notice('Use a single cursor or selection to paste an image.', 3500);
       return;
     }
-    if (!this.nativePasteModal) {
-      this.nativePasteModal = new NativePasteModal(this, captureEditor(view));
-      this.nativePasteModal.open();
-    }
+    void this.run(null, captureEditor(view));
   }
 
   async run(data, context) {
@@ -83,6 +79,11 @@ class PasteImagePlugin extends Plugin {
     let loading;
     try {
       checkEditor(this, context);
+      if (!data) {
+        const clipboard = context.view.containerEl.ownerDocument.defaultView.navigator.clipboard;
+        data = await readClipboard(clipboard);
+        checkEditor(this, context);
+      }
       if (!data.files.length) {
         if (!data.url) {
           let message = 'Clipboard is empty or contains no readable image.';

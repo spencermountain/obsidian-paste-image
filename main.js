@@ -270,57 +270,67 @@ const pasteFiles = async (plugin, context, blobs, url) => {
   editor.replaceSelection(links.join('\n') + suffix);
 };
 
-class NativePasteModal extends obsidian.Modal {
-  constructor(plugin, context) {
-    super(plugin.app);
-    this.plugin = plugin;
-    this.context = context;
-    this.shouldRestoreSelection = true;
+const readClipboard = async clipboard => {
+  if (!clipboard) {
+    throw new Error('Clipboard access is unavailable on this device.');
   }
-
-  onOpen() {
-    this.titleEl.setText('Paste image');
-    this.contentEl.createEl('p', { text: 'Tap and hold in the field below, then choose the system Paste action. On desktop, focus the field and paste normally.' });
-    const field = this.contentEl.createDiv({ attr: {
-      contenteditable: 'true', role: 'textbox', tabindex: '0',
-      'aria-label': 'Native image paste field', spellcheck: 'false',
-    } });
-    field.style.minHeight = '5em';
-    field.style.border = '1px solid var(--background-modifier-border)';
-    field.style.padding = '1em';
-    field.textContent = 'Tap here, then paste';
-    field.addEventListener('paste', event => this.handlePaste(event));
-    field.focus();
-  }
-
-  handlePaste(event) {
-    const { plugin } = this;
-    if (event.defaultPrevented) {
-      return;
-    }
-    event.preventDefault();
-    if (plugin.busy) {
-      new obsidian.Notice('An image is already loading…', 2000);
-      return;
-    }
-    let data;
+  const snapshot = {
+    files: [], itemFiles: [],
+    text: { 'text/plain': '', 'text/uri-list': '', 'text/html': '' },
+  };
+  let items;
+  if (clipboard.read) {
     try {
-      // The native event exposes iOS image files that clipboard.read() can omit.
-      data = eventClipboard(snapshotClipboard(event.clipboardData));
+      // Start the read in the button's user gesture, before any other await.
+      items = await clipboard.read();
     } catch (error) {
-      new obsidian.Notice(error.message || 'Could not read the pasted image. Try again.', 3500);
-      return;
+      if (error.name !== 'NotSupportedError') {
+        throw new Error('Clipboard access was denied. Allow paste access and try again.');
+      }
     }
-    // Closing restores the note's selection before handing off the image.
-    this.close();
-    void plugin.run(data, this.context);
   }
-
-  onClose() {
-    this.contentEl.empty();
-    this.plugin.nativePasteModal = null;
+  if (!items) {
+    if (!clipboard.readText) {
+      throw new Error('This device does not support reading the clipboard.');
+    }
+    try {
+      snapshot.text['text/plain'] = await clipboard.readText();
+    } catch {
+      throw new Error('Clipboard access was denied. Allow paste access and try again.');
+    }
+    return eventClipboard(snapshot);
   }
-}
+  let unreadable = false;
+  for (const item of items) {
+    // Types are alternate representations; keep one image per item.
+    for (const type of item.types.filter(mime => mime.startsWith('image/'))) {
+      try {
+        const image = await item.getType(type);
+        if (image.size) {
+          snapshot.files.push(image);
+          break;
+        }
+      } catch {
+        unreadable = true;
+      }
+    }
+    for (const type of Object.keys(snapshot.text)) {
+      if (item.types.includes(type)) {
+        try {
+          snapshot.text[type] += await (await item.getType(type)).text();
+        } catch {
+          // Missing metadata must not prevent pasting a readable image.
+          unreadable = true;
+        }
+      }
+    }
+  }
+  const data = eventClipboard(snapshot);
+  if (unreadable && !data.files.length && !data.url) {
+    throw new Error('Could not read the clipboard image or its URL. Try copying the image again.');
+  }
+  return data;
+};
 
 class PasteImagePlugin extends obsidian.Plugin {
   async onload() {
@@ -334,16 +344,15 @@ class PasteImagePlugin extends obsidian.Plugin {
       id: 'paste-image',
       name: 'paste-image',
       icon: 'image',
-      editorCallback: () => this.openNativePaste(),
+      editorCallback: () => this.pasteFromClipboard(),
     });
-    this.addRibbonIcon('image', 'Paste image', () => this.openNativePaste());
+    this.addRibbonIcon('image', 'Paste image', () => this.pasteFromClipboard());
     this.addSettingTab(new PasteImageSettings(this.app, this));
     this.registerEvent(this.app.workspace.on('editor-paste', (event, editor) => this.intercept(event, editor)));
   }
 
   onunload() {
     this.stopped = true;
-    this.nativePasteModal?.close();
   }
 
   intercept(event, editor) {
@@ -372,7 +381,7 @@ class PasteImagePlugin extends obsidian.Plugin {
     void this.run(data, context);
   }
 
-  openNativePaste() {
+  pasteFromClipboard() {
     if (this.busy) {
       new obsidian.Notice('An image is already loading…', 2000);
       return;
@@ -386,10 +395,7 @@ class PasteImagePlugin extends obsidian.Plugin {
       new obsidian.Notice('Use a single cursor or selection to paste an image.', 3500);
       return;
     }
-    if (!this.nativePasteModal) {
-      this.nativePasteModal = new NativePasteModal(this, captureEditor(view));
-      this.nativePasteModal.open();
-    }
+    void this.run(null, captureEditor(view));
   }
 
   async run(data, context) {
@@ -400,6 +406,11 @@ class PasteImagePlugin extends obsidian.Plugin {
     let loading;
     try {
       checkEditor(this, context);
+      if (!data) {
+        const clipboard = context.view.containerEl.ownerDocument.defaultView.navigator.clipboard;
+        data = await readClipboard(clipboard);
+        checkEditor(this, context);
+      }
       if (!data.files.length) {
         if (!data.url) {
           let message = 'Clipboard is empty or contains no readable image.';
