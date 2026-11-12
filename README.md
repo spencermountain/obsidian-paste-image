@@ -3,8 +3,8 @@
   <div>paste the _actual image_ into obsidian</div>
 </div>
 <div align="center">
-  <br> <br>
   <img width="400" height="8" alt="image" src="https://github.com/user-attachments/assets/82e03747-76c1-4ba1-bdcd-6e71f7b359da" />
+  <br> <br>
   <br> <br>
 </div>
 
