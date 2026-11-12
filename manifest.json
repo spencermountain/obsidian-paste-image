@@ -3,7 +3,7 @@
   "name": "Paste Image",
   "version": "0.0.3",
   "minAppVersion": "1.5.7",
-  "description": "Paste actual images from mixed clipboard formats or image URLs.",
-  "author": "spencer kelly",
+  "description": "Explicitly paste an image from the clipboard",
+  "author": "Spencer Kelly",
   "isDesktopOnly": false
 }

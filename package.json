@@ -1,7 +1,7 @@
 {
   "name": "obsidian-paste-image",
   "version": "0.0.3",
-  "description": "explicitly paste an image from clipboard",
+  "description": "explicitly paste an image from the clipboard",
   "repository": "github:spencermountain/obsidian-paste-image",
   "author": "Spencer Kelly <spencermountain@gmail.com> (https://spencermountain.dev)",
   "minimumReleaseAge": "1 day",
@@ -15,6 +15,7 @@
   "type": "module",
   "main": "main.js",
   "files": [
+    "manifest.json",
     "main.js",
     "src",
     "builds",
