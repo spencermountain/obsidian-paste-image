@@ -37,14 +37,15 @@ In short, you can copy `'https://example.com/image.jpg'` then the paste-image co
 ### Settings
 
 <img width="1296" height="664" alt="2026-11-12 T 10 08 13@2x" src="https://github.com/user-attachments/assets/db4cf632-2fc2-4c43-b7f3-9836b129d234" />
+<br>
 
 The _Source Link_ stuff lets you keep the url, as well as the image, and optionally format it as a markdown link.
 
 If you hook it up to work on every paste event, it may interfere with any downstream plugins that are also using the paste event.
 
 <div align="center">
-  <img width="400" height="8" alt="image" src="https://github.com/user-attachments/assets/82e03747-76c1-4ba1-bdcd-6e71f7b359da" />
   <br> <br>
+  <img width="400" height="8" alt="image" src="https://github.com/user-attachments/assets/82e03747-76c1-4ba1-bdcd-6e71f7b359da" />
   <br> <br>
 </div>
 
