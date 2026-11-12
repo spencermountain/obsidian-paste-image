@@ -1,9 +1,12 @@
 <div align="center">
   <div><code>obsidian-paste-image</code></div>
-  <div>paste the actual image in obsidian</div>
+  <div>paste the _actual image_ into obsidian</div>
 </div>
-
-<img width="400" height="68" alt="image" src="https://github.com/user-attachments/assets/4c3c5911-58ba-41d9-b025-1e70b882caed" />
+<div align="center">
+  <br> <br>
+  <img width="400" height="8" alt="image" src="https://github.com/user-attachments/assets/82e03747-76c1-4ba1-bdcd-6e71f7b359da" />
+  <br> <br>
+</div>
 
 I often find myself clicking **'Copy Image'** - to paste into Obsidian, and it does not paste the image, but the _URL of the image_.
 

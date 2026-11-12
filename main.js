@@ -174,25 +174,38 @@ class PasteImageSettings extends obsidian.PluginSettingTab {
     containerEl.empty();
     new obsidian.Setting(containerEl)
       .setName('Prefer images on paste')
-      .setDesc('Use image files before text or URLs on ordinary paste. Text-only pastes stay unchanged; use the command to download image URLs.')
-      .addToggle(toggle => toggle.setValue(settings.preferImages).onChange(async value => {
-        settings.preferImages = value;
-        await this.plugin.saveData(settings);
-      }));
+      .setDesc(
+        'Use image files before text or URLs on ordinary paste. Text-only pastes stay unchanged; use the command to download image URLs.'
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(settings.preferImages).onChange(async (value) => {
+          settings.preferImages = value;
+          await this.plugin.saveData(settings);
+        })
+      );
     new obsidian.Setting(containerEl)
-      .setName('Include image source link')
-      .setDesc('Add the source URL beneath pasted images when the clipboard contains one. Also applies to ordinary image pastes.')
-      .addToggle(toggle => toggle.setValue(settings.appendSource).onChange(async value => {
-        settings.appendSource = value;
-        await this.plugin.saveData(settings);
-      }));
+      .setName('Include image source below')
+      .setDesc(
+        'Add the source URL beneath pasted images as a link, when the clipboard contains one. Also applies to ordinary image pastes.'
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(settings.appendSource).onChange(async (value) => {
+          settings.appendSource = value;
+          await this.plugin.saveData(settings);
+        })
+      );
     new obsidian.Setting(containerEl)
-      .setName('Source link text')
-      .setDesc('Optional Markdown link label, such as “Image source”. Leave blank to show the URL.')
-      .addText(text => text.setPlaceholder('Image source').setValue(settings.linkText).onChange(async value => {
-        settings.linkText = value;
-        await this.plugin.saveData(settings);
-      }));
+      .setName('Source link label')
+      .setDesc('Optional Markdown link text, such as “Image source”. Leave blank to show bare URL.')
+      .addText((text) =>
+        text
+          .setPlaceholder('Image source')
+          .setValue(settings.linkText)
+          .onChange(async (value) => {
+            settings.linkText = value;
+            await this.plugin.saveData(settings);
+          })
+      );
   }
 }
 
@@ -342,13 +355,15 @@ class PasteImagePlugin extends obsidian.Plugin {
     this.forwardedEvents = new WeakSet();
     this.addCommand({
       id: 'paste-image',
-      name: 'paste-image',
+      name: 'Paste an image from the clipboard',
       icon: 'image',
-      editorCallback: () => this.pasteFromClipboard(),
+      editorCallback: () => this.pasteFromClipboard()
     });
     this.addRibbonIcon('image', 'Paste image', () => this.pasteFromClipboard());
     this.addSettingTab(new PasteImageSettings(this.app, this));
-    this.registerEvent(this.app.workspace.on('editor-paste', (event, editor) => this.intercept(event, editor)));
+    this.registerEvent(
+      this.app.workspace.on('editor-paste', (event, editor) => this.intercept(event, editor))
+    );
   }
 
   onunload() {
@@ -356,24 +371,33 @@ class PasteImagePlugin extends obsidian.Plugin {
   }
 
   intercept(event, editor) {
-    if (event.defaultPrevented || this.forwardedEvents.has(event) || !event.clipboardData ||
-        this.busy || (!this.settings.preferImages && !this.settings.appendSource)) {
-      return;
+    if (
+      event.defaultPrevented ||
+      this.forwardedEvents.has(event) ||
+      !event.clipboardData ||
+      this.busy ||
+      (!this.settings.preferImages && !this.settings.appendSource)
+    ) {
+      return
     }
     const view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
-    if (!view?.file || view.editor !== editor || view.getMode() !== 'source' ||
-        editor.listSelections().length !== 1) {
-      return;
+    if (
+      !view?.file ||
+      view.editor !== editor ||
+      view.getMode() !== 'source' ||
+      editor.listSelections().length !== 1
+    ) {
+      return
     }
     let data;
     try {
       data = eventClipboard(snapshotClipboard(event.clipboardData));
     } catch {
       // Leave ordinary paste intact if this clipboard cannot be read.
-      return;
+      return
     }
     if (!data.files.length || (!this.settings.preferImages && !data.url)) {
-      return;
+      return
     }
     const context = captureEditor(view);
     // Only claim the event once we have image files and a supported target.
@@ -384,23 +408,23 @@ class PasteImagePlugin extends obsidian.Plugin {
   pasteFromClipboard() {
     if (this.busy) {
       new obsidian.Notice('An image is already loading…', 2000);
-      return;
+      return
     }
     const view = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
     if (!view?.file || view.getMode() !== 'source') {
       new obsidian.Notice('Open a note in editing mode before pasting an image.', 3500);
-      return;
+      return
     }
     if (view.editor.listSelections().length !== 1) {
       new obsidian.Notice('Use a single cursor or selection to paste an image.', 3500);
-      return;
+      return
     }
     void this.run(null, captureEditor(view));
   }
 
   async run(data, context) {
     if (this.busy || this.stopped) {
-      return;
+      return
     }
     this.busy = true;
     let loading;
@@ -417,7 +441,7 @@ class PasteImagePlugin extends obsidian.Plugin {
           if (data.hasText) {
             message = 'Clipboard contains text, not an image or an image URL.';
           }
-          throw new Error(message);
+          throw new Error(message)
         }
         loading = new obsidian.Notice('Loading image…', 2500);
         data.files = [await downloadImage(data.url)];
@@ -426,7 +450,10 @@ class PasteImagePlugin extends obsidian.Plugin {
       await pasteFiles(this, context, data.files, data.url);
     } catch (error) {
       if (!this.stopped) {
-        new obsidian.Notice(error.message || 'Could not paste the image. Check your connection and try again.', 4500);
+        new obsidian.Notice(
+          error.message || 'Could not paste the image. Check your connection and try again.',
+          4500
+        );
       }
     } finally {
       loading?.hide();
