@@ -40,6 +40,8 @@ In short, you can copy `'https://example.com/image.jpg'` then the paste-image co
 
 The _Source Link_ stuff lets you keep the url, as well as the image, and optionally format it as a markdown link.
 
+If you hook it up to work on every paste event, it may interfere with any downstream plugins that are also using the paste event.
+
 <div align="center">
   <img width="400" height="8" alt="image" src="https://github.com/user-attachments/assets/82e03747-76c1-4ba1-bdcd-6e71f7b359da" />
   <br> <br>
@@ -50,13 +52,15 @@ The _Source Link_ stuff lets you keep the url, as well as the image, and optiona
 
 When you copy something to the clipboard, it can store several formats of your copied item. This way, the destination application can choose the preferred format.
 
-You can see the different formats with a [clipboard inspector](https://tools.spencermountain.dev/web/clipboard).
+You can see the different formats with a [clipboard inspector](https://tools.spencermountain.dev/web/clipboard):
 
-<img width="400" alt="2026-11-12 T 10 24 54@2x" src="https://github.com/user-attachments/assets/50bf6ccc-1364-4725-a66e-d0573d57f9ea" />
+<img width="450" alt="2026-11-12 T 10 24 54@2x" src="https://github.com/user-attachments/assets/50bf6ccc-1364-4725-a66e-d0573d57f9ea" />
 
-Different applications and even different browsers have different output here, particularly with the ordering and formatting of these items.
+Different applications and even different browsers have different output here, particularly with custom ordering and formatting decisions.
 
-It's not as simple as cherry-picking which clipboard item. More complexity shows-up when we're dealing with native clipboard events on mobile, and translation to browser-events. There's intentional differences between web clipboard and the native mobile clipboards, often for security reasons. Moving random binary between applications is a rightfully-spooky thing. Obsidian is a web application - and these paste-events are translated in this lossy, opaque way.
+It's not as simple as cherry-picking which clipboard item either - more complexity shows-up when we're dealing with native clipboard events on mobile, and translation to browser-events. There's intentional differences between web clipboard and the native mobile clipboards, often for security reasons. Moving random binary between applications is a rightfully-spooky thing. Obsidian is a web application - and these paste-events are translated in this lossy, opaque way.
+
+It needs to work on mobile, so it does not use the Electron native clipboard module.
 
 Anyways, this plugin just tries its best. Please let me know if it ever screws-up.
 
