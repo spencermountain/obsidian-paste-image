@@ -1,6 +1,6 @@
 {
   "name": "obsidian-paste-image",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "",
   "repository": "github:spencermountain/obsidian-paste-image",
   "author": "Spencer Kelly <spencermountain@gmail.com> (https://spencermountain.dev)",
@@ -13,7 +13,7 @@
     "lint": "eslint ."
   },
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/main.js",
   "files": [
     "src",
     "builds",

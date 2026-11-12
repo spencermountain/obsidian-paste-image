@@ -1,30 +1,51 @@
 <div align="center">
   <div><code>obsidian-paste-image</code></div>
-  <div>obsidian plugin to better-control image paste behaviour</div>
+  <div>paste the actual image in obsidian</div>
 </div>
 
-<!-- spacer -->
-<img height="20px" src="https://user-images.githubusercontent.com/399657/68221862-17ceb980-ffb8-11e9-87d4-7b30b6488f16.png"/>
+<img width="400" height="68" alt="image" src="https://github.com/user-attachments/assets/4c3c5911-58ba-41d9-b025-1e70b882caed" />
 
-Copying an image can put both a URL and image data on the clipboard. Paste Image prefers the actual image, even when a text or URL representation comes first.
+I often find myself clicking **'Copy Image'** - to paste into Obsidian, and it does not paste the image, but the _URL of the image_.
 
-Run `paste-image` or tap the image ribbon button in an editable note. The plugin reads the clipboard immediately, prefers available image data, and passes the image to Obsidian's editor paste handling so attachment settings and other image plugins can participate. There is no plugin dialog or second paste gesture; the operating system may still request clipboard permission.
+This is frustrating because this behaviour seems to change arbitrarily on different applications and even websites. Obsidian even seems idiosyncratic here, more than other applications that reliably paste an image that you've explicity chosen to copy.
 
-If clipboard access exposes only an HTTP(S) image URL, the command checks it with HEAD and downloads the image, with a short loading notice. Servers that reject HEAD with 405 or 501 are checked through GET instead. Downloads must return a supported image type and matching image signature; images larger than 25 MB are rejected. URLs can also come from `text/uri-list` or an HTML image source.
+This plugin provides a command to paste the actual image binary in your clipboard. This is not as simple as you'd think. Like everything else - the clipboard is more complicated than you assume.
 
-Both optional settings are off by default:
+### Usage
 
-* **Prefer images on paste** handles image files during ordinary editor paste. Text-only and URL-only pastes stay unchanged. Events already handled by Obsidian or another plugin are left alone.
-* **Include image source link** adds the available source URL below the image. Set **Source link text** to produce a Markdown link such as `[src](https://example.com/image.jpg)`; leave it blank for the URL itself.
+This plugin has three features, all optional, and all default off:
 
-### Why download the URL on iOS?
+- 1. a **Paste Image** command, you can run whenever you want
+- 2. a _**ribbon button**_ for mobile, so you can one-click binary paste
+- 3. a _**paste-event interceptor**_ so this becomes the default obsidian behaviour (default off)
 
-In our iOS Safari tests, `navigator.clipboard.read()` exposed only `text/uri-list`, even though the clipboard also held a JPEG. Choosing the system Paste action in an editable field exposed both the URL and the actual image file. We then confirmed this in iOS Obsidian: both the editor and our dialog received an `image/jpeg` file, and the dialog passed it to the editor without downloading the URL. Desktop testing also confirmed native image handling and the URL-download fallback.
+In all cases, it looks for an image binary in a clipboard, first. This is the easiest win.
 
-Requiring a second manual paste is not suitable for a ribbon button, so the experimental dialog has been removed. The command uses the direct Clipboard API and checks every item's image representations before falling back to its URL. When iOS hides the image bytes but exposes `text/uri-list`, the button can still insert an image by downloading that URL. This requires network access and retrieves the server's image, which may differ from the clipboard copy. If neither image data nor a usable URL is accessible, the plugin shows a notice; a synthetic paste event cannot reveal hidden clipboard data.
+Failing that, the plugin looks for a 'Rich Text' Image url in any html-formatted clipboard items.
 
-The optional ordinary-paste handler still uses the native event's image files, capturing text and file references synchronously before any asynchronous processing. Other apps and OS versions may expose different formats, and other plugins can choose how to handle the forwarded paste.
+Third, it looks for `"text/uri-list"` and `"text/plain"` clipboard items that resemble image urls
 
-Temporary diagnostic panels and clipboard logging have been removed. Clipboard contents are processed only for the requested paste; the plugin keeps no diagnostic history. Network requests are made only when the command receives a URL without an image file.
+In either case, it fetches the url HEAD to see the url if it is `Content-Type` :`image/*`, and downloads the image to binary, so it can be pasted.
 
-MIT
+In short, you can copy `'https://example.com/image.jpg'` then the paste-image command will paste it into your obsidian note.
+
+### Settings
+
+<img width="1296" height="664" alt="2026-11-12 T 10 08 13@2x" src="https://github.com/user-attachments/assets/db4cf632-2fc2-4c43-b7f3-9836b129d234" />
+
+### Details
+
+When you copy something to the clipboard, it can store several formats of your copied item. This way, the destination application can choose the preferred format.
+
+You can see the different formats with a [clipboard inspector](https://tools.spencermountain.dev/web/clipboard).
+<img width="1000" height="980" alt="2026-11-12 T 10 24 54@2x" src="https://github.com/user-attachments/assets/50bf6ccc-1364-4725-a66e-d0573d57f9ea" />
+
+Different applications and even different browsers have different output here, particularly with the ordering and formatting of these items.
+
+It's not as simple as cherry-picking which clipboard item. More complexity shows-up when we're dealing with native clipboard events on mobile, and translation to browser-events. There's intentional differences between web clipboard and the native mobile clipboards, often for security reasons. Moving random binary between applications is a rightfully-spooky thing. Obsidian is a web application - and these paste-events are translated in this lossy, opaque way.
+
+Anyways, this plugin just tries its best. Please let me know if it ever screws-up.
+
+When i click 'copy image' it should copy the darn image.
+
+MIT - PRs welcome
